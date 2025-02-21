@@ -3,6 +3,7 @@
 # 配置参数
 TPROXY_PORT=7895  # 与 sing-box 中定义的一致
 ROUTING_MARK=666  # 与 sing-box 中定义的一致
+HTTP_PORT=6080                                              # HTTP CONNECT 代理端口
 PROXY_FWMARK=1
 PROXY_ROUTE_TABLE=100
 INTERFACE=$(ip route show default | awk '/default/ {print $5}')
@@ -82,6 +83,13 @@ table inet sing-box {
         flags interval
         auto-merge
         elements = $ReservedIP4
+    }
+
+        chain prerouting {
+        type nat hook prerouting priority dstnat; policy accept;
+        fib daddr type local meta l4proto { tcp, udp } th dport $HTTP_PORT reject with icmpx type host-unreachable comment "防止回环"
+        fib daddr type local accept comment "本机流量绕过"
+        ip daddr { 127.0.0.0/8, 10.0.0.0/16, 192.168.0.0/16, 100.64.0.0/10, 169.254.0.0/16, 172.16.0.0/12, 224.0.0.0/4, 240.0.0.0/4, 255.255.255.255/32 } accept comment "保留地址绕过"
     }
 
     chain prerouting_tproxy {
